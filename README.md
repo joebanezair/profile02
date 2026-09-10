@@ -2,6 +2,10 @@
 
 A responsive, recruiter-focused portfolio website showcasing my experience in IT Support, Technical Support, QA, Customer Service, Sales, software development projects, education, certifications, and technical skills.
 
+## 🌐 Live Portfolio
+
+**View the live website:** https://joebanezair-portfolio-ahqze4axk-joebanezairs-projects.vercel.app
+
 ## Live-ready
 
 This project is a static website and can be deployed for free using:
@@ -43,7 +47,9 @@ In GitHub, open **Settings → Pages**, select **Deploy from a branch**, choose 
 
 ## Deployment — Vercel
 
-Import this GitHub repository into Vercel and deploy with the default static-site settings.
+The portfolio is currently deployed on Vercel:
+
+https://joebanezair-portfolio-ahqze4axk-joebanezairs-projects.vercel.app
 
 ## Updating the site
 
