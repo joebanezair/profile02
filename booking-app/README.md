@@ -1,25 +1,27 @@
-# MERN Booking App
+# BookFlow — MERN Booking App
 
-A basic full-stack booking manager added to the `profile02` repository without changing the existing portfolio.
+A full-stack booking manager built with the MERN stack and added to the `profile02` repository as a standalone portfolio project.
 
-## Features
+## Highlights
 
-- React + Vite frontend
-- Node.js + Express API
-- MongoDB + Mongoose
+- React + Vite responsive dashboard
+- Node.js + Express REST API
+- MongoDB + Mongoose persistence
 - Email/password registration and login
 - bcrypt password hashing
 - JWT authentication
-- Protected booking routes
+- Protected per-user booking routes
 - Create, read, update and delete bookings
-- Per-user booking ownership
-- Booking statuses: pending, confirmed, cancelled
+- Search bookings by guest, service or notes
+- Filter bookings by status
+- Dashboard statistics for total, upcoming, confirmed and pending bookings
+- Quick status updates
+- Responsive desktop/mobile interface
+- Backend input validation and ObjectId checks
 
 ## Run in GitHub Codespaces
 
-### 1. Start MongoDB
-
-You can use MongoDB Atlas or a MongoDB instance available to your Codespace.
+### 1. Configure the API
 
 Create `server/.env` from `server/.env.example`:
 
@@ -30,7 +32,7 @@ JWT_SECRET=use_a_long_random_secret_here
 CLIENT_URL=http://localhost:5173
 ```
 
-For GitHub Codespaces, after Vite forwards port 5173, set `CLIENT_URL` to the forwarded frontend URL if the browser blocks requests because of CORS.
+For GitHub Codespaces, after Vite forwards port 5173, set `CLIENT_URL` to the forwarded frontend URL if required by CORS.
 
 ### 2. Start the API
 
@@ -42,7 +44,7 @@ npm run dev
 
 ### 3. Start the React frontend
 
-In a second terminal:
+Open a second terminal:
 
 ```bash
 cd booking-app/client
@@ -52,7 +54,7 @@ npm run dev
 
 Open the forwarded port for 5173.
 
-## API
+## REST API
 
 ### Authentication
 
@@ -68,10 +70,12 @@ Authorization: Bearer <token>
 ```
 
 - `GET /api/bookings`
+- `GET /api/bookings?status=confirmed`
+- `GET /api/bookings?search=consultation`
 - `POST /api/bookings`
 - `PUT /api/bookings/:id`
 - `DELETE /api/bookings/:id`
 
-## Notes
+## Security note
 
-The JWT is stored in `localStorage` for this learning project. For a production application, consider secure HttpOnly cookies, CSRF protection, stronger validation, rate limiting, refresh-token/session strategy, logging and automated tests.
+This portfolio project stores the JWT in `localStorage` to keep the learning architecture easy to understand. A production deployment should consider secure HttpOnly cookies, CSRF protection, request rate limiting, refresh/session rotation, schema validation, logging and automated tests.
