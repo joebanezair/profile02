@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 
+const services = ["Consultation", "Technical Support", "Product Demo", "Project Meeting", "Discovery Call", "Other"];
+
 const emptyBooking = {
   guestName: "",
-  service: "",
+  service: "Consultation",
   bookingDate: "",
   notes: "",
   status: "pending"
@@ -37,51 +39,72 @@ function Auth({ onAuthenticated }) {
 
   return (
     <main className="auth-shell">
-      <section className="auth-card">
-        <p className="eyebrow">MERN BOOKING APP</p>
-        <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
-        <p className="muted">Sign in to manage your bookings securely.</p>
+      <section className="auth-layout">
+        <div className="auth-hero">
+          <span className="brand-mark">B</span>
+          <p className="eyebrow light">BOOKFLOW</p>
+          <h1>Simple scheduling.<br />Clear follow-through.</h1>
+          <p>Manage appointments, track booking status, and keep every client interaction organized in one place.</p>
+          <div className="feature-pills">
+            <span>Secure authentication</span>
+            <span>Booking CRUD</span>
+            <span>MongoDB persistence</span>
+          </div>
+        </div>
 
-        <form onSubmit={submit}>
-          {mode === "register" && (
+        <section className="auth-card">
+          <div className="auth-card-header">
+            <p className="eyebrow">WELCOME</p>
+            <h2>{mode === "login" ? "Sign in to BookFlow" : "Create your account"}</h2>
+            <p className="muted">{mode === "login" ? "Continue to your booking dashboard." : "Start managing your appointments."}</p>
+          </div>
+
+          <form onSubmit={submit}>
+            {mode === "register" && (
+              <label>
+                Full name
+                <input autoComplete="name" placeholder="Your name" value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </label>
+            )}
             <label>
-              Name
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
+              Email address
+              <input type="email" autoComplete="email" placeholder="you@example.com" value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })} required />
             </label>
-          )}
-          <label>
-            Email
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
-          </label>
-          <label>
-            Password
-            <input
-              type="password"
-              minLength="8"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
-          </label>
+            <label>
+              Password
+              <input type="password" minLength="8"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                placeholder="Minimum 8 characters" value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            </label>
 
-          {error && <p className="error">{error}</p>}
-          <button disabled={busy}>{busy ? "Please wait..." : mode === "login" ? "Sign in" : "Register"}</button>
-        </form>
+            {error && <p className="error">{error}</p>}
+            <button className="primary-button" disabled={busy}>
+              {busy ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
+            </button>
+          </form>
 
-        <button className="link-button" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-          {mode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
-        </button>
+          <button className="link-button auth-switch" onClick={() => {
+            setError("");
+            setMode(mode === "login" ? "register" : "login");
+          }}>
+            {mode === "login" ? "New to BookFlow? Create an account" : "Already registered? Sign in"}
+          </button>
+        </section>
       </section>
     </main>
+  );
+}
+
+function StatCard({ label, value, detail }) {
+  return (
+    <article className="stat-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </article>
   );
 }
 
@@ -91,11 +114,31 @@ function Dashboard({ user, onLogout }) {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const sortedBookings = useMemo(
-    () => [...bookings].sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate)),
-    [bookings]
-  );
+  const stats = useMemo(() => {
+    const now = new Date();
+    return {
+      total: bookings.length,
+      confirmed: bookings.filter((b) => b.status === "confirmed").length,
+      pending: bookings.filter((b) => b.status === "pending").length,
+      upcoming: bookings.filter((b) => b.status !== "cancelled" && new Date(b.bookingDate) >= now).length
+    };
+  }, [bookings]);
+
+  const visibleBookings = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return [...bookings]
+      .filter((booking) => statusFilter === "all" || booking.status === statusFilter)
+      .filter((booking) => {
+        if (!normalizedQuery) return true;
+        return [booking.guestName, booking.service, booking.notes]
+          .some((value) => String(value || "").toLowerCase().includes(normalizedQuery));
+      })
+      .sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate));
+  }, [bookings, query, statusFilter]);
 
   async function loadBookings() {
     try {
@@ -116,7 +159,7 @@ function Dashboard({ user, onLogout }) {
   async function submit(event) {
     event.preventDefault();
     setError("");
-
+    setSaving(true);
     try {
       if (editingId) {
         const updated = await api.bookings.update(editingId, form);
@@ -128,6 +171,8 @@ function Dashboard({ user, onLogout }) {
       resetForm();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -140,11 +185,20 @@ function Dashboard({ user, onLogout }) {
       notes: booking.notes || "",
       status: booking.status
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.getElementById("booking-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function changeStatus(booking, status) {
+    try {
+      const updated = await api.bookings.update(booking._id, { ...booking, status });
+      setBookings((items) => items.map((item) => item._id === booking._id ? updated : item));
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function removeBooking(id) {
-    if (!window.confirm("Delete this booking?")) return;
+    if (!window.confirm("Delete this booking permanently?")) return;
     try {
       await api.bookings.remove(id);
       setBookings((items) => items.filter((item) => item._id !== id));
@@ -159,86 +213,160 @@ function Dashboard({ user, onLogout }) {
     setForm(emptyBooking);
   }
 
+  const firstName = user?.name?.split(" ")[0] || "there";
+
   return (
     <main className="page-shell">
-      <header className="topbar">
+      <aside className="sidebar">
         <div>
-          <p className="eyebrow">BOOKING MANAGER</p>
-          <h1>Hello, {user?.name || "there"}</h1>
+          <div className="sidebar-brand">
+            <span className="brand-mark small">B</span>
+            <div><strong>BookFlow</strong><small>MERN Booking Manager</small></div>
+          </div>
+          <nav className="sidebar-nav">
+            <a className="active" href="#dashboard">Dashboard</a>
+            <a href="#booking-form">New booking</a>
+            <a href="#bookings">Bookings</a>
+          </nav>
         </div>
-        <button className="secondary" onClick={onLogout}>Sign out</button>
-      </header>
+        <div className="sidebar-user">
+          <div className="avatar">{firstName.charAt(0).toUpperCase()}</div>
+          <div><strong>{user?.name}</strong><small>{user?.email}</small></div>
+          <button className="icon-button" onClick={onLogout} title="Sign out">↗</button>
+        </div>
+      </aside>
 
-      <section className="grid">
-        <form className="panel booking-form" onSubmit={submit}>
-          <div className="panel-title">
-            <h2>{editingId ? "Edit booking" : "New booking"}</h2>
-            {editingId && <button type="button" className="link-button" onClick={resetForm}>Cancel edit</button>}
+      <section className="content-shell" id="dashboard">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">DASHBOARD</p>
+            <h1>Good to see you, {firstName}.</h1>
+            <p className="muted">Here’s what’s happening with your bookings.</p>
           </div>
+          <button className="primary-button compact"
+            onClick={() => document.getElementById("booking-form")?.scrollIntoView({ behavior: "smooth" })}>
+            + New booking
+          </button>
+        </header>
 
-          <label>
-            Guest name
-            <input value={form.guestName} onChange={(e) => setForm({ ...form, guestName: e.target.value })} required />
-          </label>
-          <label>
-            Service
-            <input placeholder="Consultation, demo, meeting..." value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} required />
-          </label>
-          <label>
-            Date and time
-            <input type="datetime-local" value={form.bookingDate} onChange={(e) => setForm({ ...form, bookingDate: e.target.value })} required />
-          </label>
-          <label>
-            Status
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </label>
-          <label>
-            Notes
-            <textarea rows="4" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          </label>
+        <section className="stats-grid">
+          <StatCard label="Total bookings" value={stats.total} detail="All appointments" />
+          <StatCard label="Upcoming" value={stats.upcoming} detail="Still on schedule" />
+          <StatCard label="Confirmed" value={stats.confirmed} detail="Ready to go" />
+          <StatCard label="Pending" value={stats.pending} detail="Needs attention" />
+        </section>
 
-          {error && <p className="error">{error}</p>}
-          <button>{editingId ? "Save changes" : "Create booking"}</button>
-        </form>
+        {error && <p className="error dashboard-error">{error}</p>}
 
-        <section className="panel">
-          <div className="panel-title">
-            <h2>Your bookings</h2>
-            <span className="count">{bookings.length}</span>
-          </div>
-
-          {loading ? (
-            <p className="muted">Loading bookings...</p>
-          ) : sortedBookings.length === 0 ? (
-            <div className="empty-state">
-              <h3>No bookings yet</h3>
-              <p className="muted">Create your first booking using the form.</p>
+        <section className="workspace-grid">
+          <form id="booking-form" className="panel booking-form" onSubmit={submit}>
+            <div className="panel-title">
+              <div><p className="eyebrow">SCHEDULE</p><h2>{editingId ? "Edit booking" : "Create booking"}</h2></div>
+              {editingId && <button type="button" className="link-button" onClick={resetForm}>Cancel</button>}
             </div>
-          ) : (
-            <div className="booking-list">
-              {sortedBookings.map((booking) => (
-                <article className="booking-card" key={booking._id}>
-                  <div>
-                    <div className="booking-heading">
-                      <h3>{booking.guestName}</h3>
-                      <span className={`status ${booking.status}`}>{booking.status}</span>
-                    </div>
-                    <p><strong>{booking.service}</strong></p>
-                    <p>{new Date(booking.bookingDate).toLocaleString()}</p>
-                    {booking.notes && <p className="muted">{booking.notes}</p>}
-                  </div>
-                  <div className="row-actions">
-                    <button className="secondary" onClick={() => editBooking(booking)}>Edit</button>
-                    <button className="danger" onClick={() => removeBooking(booking._id)}>Delete</button>
-                  </div>
-                </article>
-              ))}
+
+            <label>
+              Client / guest
+              <input placeholder="e.g. Alex Johnson" value={form.guestName}
+                onChange={(e) => setForm({ ...form, guestName: e.target.value })} required />
+            </label>
+            <label>
+              Service
+              <select value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })}>
+                {services.map((service) => <option key={service} value={service}>{service}</option>)}
+              </select>
+            </label>
+            <label>
+              Date and time
+              <input type="datetime-local" value={form.bookingDate}
+                onChange={(e) => setForm({ ...form, bookingDate: e.target.value })} required />
+            </label>
+            <label>
+              Status
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </label>
+            <label>
+              Notes
+              <textarea rows="4" maxLength="500" placeholder="Add context, requirements, or reminders..."
+                value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <small className="field-hint">{form.notes.length}/500 characters</small>
+            </label>
+
+            <button className="primary-button" disabled={saving}>
+              {saving ? "Saving..." : editingId ? "Save changes" : "Create booking"}
+            </button>
+          </form>
+
+          <section id="bookings" className="panel bookings-panel">
+            <div className="bookings-toolbar">
+              <div><p className="eyebrow">APPOINTMENTS</p><h2>Your bookings</h2></div>
+              <span className="count">{visibleBookings.length}</span>
             </div>
-          )}
+
+            <div className="filters">
+              <input className="search-input" type="search" placeholder="Search guest, service, notes..."
+                value={query} onChange={(e) => setQuery(e.target.value)} />
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            {loading ? (
+              <div className="empty-state"><p className="muted">Loading bookings...</p></div>
+            ) : visibleBookings.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">⌁</div>
+                <h3>{bookings.length ? "No matching bookings" : "No bookings yet"}</h3>
+                <p className="muted">{bookings.length ? "Try changing your search or filter." : "Create your first appointment to get started."}</p>
+              </div>
+            ) : (
+              <div className="booking-list">
+                {visibleBookings.map((booking) => {
+                  const bookingDate = new Date(booking.bookingDate);
+                  const isPast = bookingDate < new Date();
+                  return (
+                    <article className="booking-card" key={booking._id}>
+                      <div className="date-tile">
+                        <span>{bookingDate.toLocaleDateString([], { month: "short" })}</span>
+                        <strong>{bookingDate.getDate()}</strong>
+                      </div>
+                      <div className="booking-main">
+                        <div className="booking-heading">
+                          <div><h3>{booking.guestName}</h3><p>{booking.service}</p></div>
+                          <span className={"status " + booking.status}>{booking.status}</span>
+                        </div>
+                        <div className="booking-meta">
+                          <span>{bookingDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          <span>•</span>
+                          <span>{isPast ? "Past booking" : "Upcoming"}</span>
+                        </div>
+                        {booking.notes && <p className="booking-notes">{booking.notes}</p>}
+                        <div className="booking-footer">
+                          <select className="status-select" value={booking.status}
+                            onChange={(e) => changeStatus(booking, e.target.value)}>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                          <div className="row-actions">
+                            <button className="secondary" onClick={() => editBooking(booking)}>Edit</button>
+                            <button className="danger" onClick={() => removeBooking(booking._id)}>Delete</button>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </section>
       </section>
     </main>
@@ -247,11 +375,8 @@ function Dashboard({ user, onLogout }) {
 
 export default function App() {
   const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("booking_user"));
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(localStorage.getItem("booking_user")); }
+    catch { return null; }
   });
 
   function logout() {
@@ -260,7 +385,5 @@ export default function App() {
     setUser(null);
   }
 
-  return user
-    ? <Dashboard user={user} onLogout={logout} />
-    : <Auth onAuthenticated={setUser} />;
+  return user ? <Dashboard user={user} onLogout={logout} /> : <Auth onAuthenticated={setUser} />;
 }
